@@ -33,59 +33,46 @@
     font-size: 18px;
     letter-spacing: 0.5px;
   }
-  .nav-btn {
+  #nav-pill {
     position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: rgba(20,20,20,0.55);
-    border: 2px solid rgba(255,255,255,0.85);
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(10,10,10,0.75);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 999px;
+    padding: 10px 16px;
+    z-index: 6;
+    backdrop-filter: blur(6px);
+    max-width: 90vw;
+  }
+  .pill-arrow {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 20px;
     cursor: pointer;
-    z-index: 5;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ffffff;
-    font-size: 22px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-    transition: background 0.2s, transform 0.2s;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    border-radius: 50%;
+    transition: background 0.2s ease, transform 0.15s ease;
   }
-  .nav-btn:hover {
-    background: rgba(255,255,255,0.9);
-    color: #111;
-  }
-  #prev-btn { left: 16px; }
-  #next-btn { right: 16px; }
-
-  /* En pantallas táctiles (celulares/tablets) ocultamos las flechas y se navega deslizando */
-  body.is-touch .nav-btn { display: none; }
-
-  #counter {
-    position: fixed;
-    bottom: 18px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: rgba(255,255,255,0.6);
-    font-size: 14px;
-    background: rgba(0,0,0,0.4);
-    padding: 6px 16px;
-    border-radius: 20px;
-    z-index: 6;
-    user-select: none;
-  }
+  .pill-arrow:hover { background: rgba(255,255,255,0.15); }
+  .pill-arrow:active { transform: scale(0.88); }
   #dots {
-    position: fixed;
-    bottom: 52px;
-    left: 50%;
-    transform: translateX(-50%);
     display: flex;
+    align-items: center;
     gap: 8px;
-    z-index: 6;
-    max-width: 70vw;
+    max-width: 50vw;
     overflow-x: auto;
-    padding: 6px 4px;
+    padding: 2px;
   }
   #dots::-webkit-scrollbar { display: none; }
   .dot {
@@ -125,10 +112,11 @@
   <canvas id="pdf-canvas" style="display:none;"></canvas>
 </div>
 
-<button id="prev-btn" class="nav-btn" aria-label="Anterior">&#10094;</button>
-<button id="next-btn" class="nav-btn" aria-label="Siguiente">&#10095;</button>
-<div id="counter"></div>
-<div id="dots"></div>
+<div id="nav-pill">
+  <button id="prev-btn" class="pill-arrow" aria-label="Anterior">&#8592;</button>
+  <div id="dots"></div>
+  <button id="next-btn" class="pill-arrow" aria-label="Siguiente">&#8594;</button>
+</div>
 <button id="fullscreen-btn">Pantalla completa</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -142,7 +130,6 @@
   const canvas = document.getElementById('pdf-canvas');
   const ctx = canvas.getContext('2d');
   const loading = document.getElementById('loading');
-  const counter = document.getElementById('counter');
   const dotsContainer = document.getElementById('dots');
 
   function buildDots() {
@@ -200,7 +187,6 @@
       page.render(renderContext).promise.then(function() {
         loading.style.display = 'none';
         canvas.style.display = 'block';
-        counter.textContent = num + ' / ' + pdfDoc.numPages;
         updateDots();
 
         // Animación de aparición suave al cambiar de página
@@ -246,36 +232,6 @@
       document.exitFullscreen();
     }
   });
-
-  // Detección confiable de dispositivo táctil para ocultar las flechas
-  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-    document.body.classList.add('is-touch');
-  }
-
-  // Navegación por deslizamiento (swipe) en celulares/tablets
-  let touchStartX = 0;
-  let touchStartY = 0;
-
-  document.addEventListener('touchstart', function(e) {
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
-  }, { passive: true });
-
-  document.addEventListener('touchend', function(e) {
-    const touchEndX = e.changedTouches[0].screenX;
-    const touchEndY = e.changedTouches[0].screenY;
-    const diffX = touchEndX - touchStartX;
-    const diffY = touchEndY - touchStartY;
-
-    // Solo contamos como swipe si el movimiento horizontal es claro y mayor al vertical
-    if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
-      if (diffX < 0) {
-        goToPage(currentPage + 1); // deslizar a la izquierda = siguiente
-      } else {
-        goToPage(currentPage - 1); // deslizar a la derecha = anterior
-      }
-    }
-  }, { passive: true });
 </script>
 
 </body>
