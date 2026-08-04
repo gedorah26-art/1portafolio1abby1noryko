@@ -27,6 +27,7 @@
     top: 50%;
     left: 50%;
     box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    touch-action: none;
   }
   #loading {
     color: #ccc;
@@ -215,6 +216,9 @@
   function goToPage(num) {
     if (num < 1 || num > pdfDoc.numPages) return;
     currentPage = num;
+    zoomScale = 1;
+    zoomTranslateX = 0;
+    zoomTranslateY = 0;
     renderPage(currentPage);
   }
 
@@ -252,28 +256,108 @@
     document.body.classList.add('is-touch');
   }
 
-  // Navegación por deslizamiento (swipe) en celulares/tablets
+  // Navegación por deslizamiento (swipe) en celulares/tablets + pinch-to-zoom con dos dedos
   let touchStartX = 0;
   let touchStartY = 0;
+  let singleTouchActive = false;
+
+  let isPinching = false;
+  let zoomScale = 1;
+  let zoomTranslateX = 0;
+  let zoomTranslateY = 0;
+  let pinchStartDistance = 0;
+  let pinchStartScale = 1;
+  let pinchStartMidX = 0;
+  let pinchStartMidY = 0;
+  let pinchStartTranslateX = 0;
+  let pinchStartTranslateY = 0;
+
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 4;
+  const ZOOM_RESET_THRESHOLD = 1.02; // por debajo de esto se considera "sin zoom"
+
+  function getTouchDistance(t1, t2) {
+    return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+  }
+
+  function getTouchMidpoint(t1, t2) {
+    return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+  }
+
+  function applyZoomTransform(withTransition) {
+    canvas.style.transition = withTransition ? 'transform 0.25s ease' : 'none';
+    canvas.style.transform =
+      'translate(-50%, -50%) translate(' + zoomTranslateX + 'px, ' + zoomTranslateY + 'px) scale(' + zoomScale + ')';
+  }
+
+  function resetZoom(withTransition) {
+    zoomScale = 1;
+    zoomTranslateX = 0;
+    zoomTranslateY = 0;
+    applyZoomTransform(withTransition);
+  }
 
   document.addEventListener('touchstart', function(e) {
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
+    if (e.touches.length === 2) {
+      // Empieza un gesto de pellizco: deshabilita cualquier swipe en curso
+      isPinching = true;
+      singleTouchActive = false;
+      pinchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
+      pinchStartScale = zoomScale;
+      const mid = getTouchMidpoint(e.touches[0], e.touches[1]);
+      pinchStartMidX = mid.x;
+      pinchStartMidY = mid.y;
+      pinchStartTranslateX = zoomTranslateX;
+      pinchStartTranslateY = zoomTranslateY;
+    } else if (e.touches.length === 1 && !isPinching && zoomScale <= ZOOM_RESET_THRESHOLD) {
+      // Solo se prepara el swipe de un dedo si no hay zoom activo
+      singleTouchActive = true;
+      touchStartX = e.touches[0].screenX;
+      touchStartY = e.touches[0].screenY;
+    }
   }, { passive: true });
 
-  document.addEventListener('touchend', function(e) {
-    const touchEndX = e.changedTouches[0].screenX;
-    const touchEndY = e.changedTouches[0].screenY;
-    const diffX = touchEndX - touchStartX;
-    const diffY = touchEndY - touchStartY;
+  document.addEventListener('touchmove', function(e) {
+    if (e.touches.length === 2) {
+      // Pellizco en curso: hacemos zoom y paneo con dos dedos, y evitamos el zoom nativo de la página
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      const mid = getTouchMidpoint(e.touches[0], e.touches[1]);
+      let newScale = pinchStartScale * (distance / pinchStartDistance);
+      newScale = Math.min(Math.max(newScale, MIN_ZOOM), MAX_ZOOM);
+      zoomScale = newScale;
+      zoomTranslateX = pinchStartTranslateX + (mid.x - pinchStartMidX);
+      zoomTranslateY = pinchStartTranslateY + (mid.y - pinchStartMidY);
+      applyZoomTransform(false);
+    }
+  }, { passive: false });
 
-    // Solo contamos como swipe si el movimiento horizontal es claro y mayor al vertical
-    if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
-      if (diffX < 0) {
-        goToPage(currentPage + 1); // deslizar a la izquierda = siguiente
-      } else {
-        goToPage(currentPage - 1); // deslizar a la derecha = anterior
+  document.addEventListener('touchend', function(e) {
+    if (e.touches.length < 2 && isPinching) {
+      isPinching = false;
+      // Si el zoom volvió a un nivel ~normal, reseteamos posición y re-habilitamos el swipe
+      if (zoomScale <= ZOOM_RESET_THRESHOLD) {
+        resetZoom(true);
       }
+    }
+
+    if (e.touches.length === 0) {
+      if (singleTouchActive && !isPinching && zoomScale <= ZOOM_RESET_THRESHOLD) {
+        const touchEndX = e.changedTouches[0].screenX;
+        const touchEndY = e.changedTouches[0].screenY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+
+        // Solo contamos como swipe si el movimiento horizontal es claro y mayor al vertical
+        if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+          if (diffX < 0) {
+            goToPage(currentPage + 1); // deslizar a la izquierda = siguiente
+          } else {
+            goToPage(currentPage - 1); // deslizar a la derecha = anterior
+          }
+        }
+      }
+      singleTouchActive = false;
     }
   }, { passive: true });
 </script>
