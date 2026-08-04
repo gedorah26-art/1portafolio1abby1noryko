@@ -59,6 +59,11 @@
   #prev-btn { left: 16px; }
   #next-btn { right: 16px; }
 
+  /* En pantallas táctiles (celulares/tablets) ocultamos las flechas y se navega deslizando */
+  @media (hover: none) and (pointer: coarse) {
+    .nav-btn { display: none; }
+  }
+
   #counter {
     position: fixed;
     bottom: 18px;
@@ -183,6 +188,31 @@
       document.exitFullscreen();
     }
   });
+
+  // Navegación por deslizamiento (swipe) en celulares/tablets
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  document.addEventListener('touchstart', function(e) {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    const touchEndX = e.changedTouches[0].screenX;
+    const touchEndY = e.changedTouches[0].screenY;
+    const diffX = touchEndX - touchStartX;
+    const diffY = touchEndY - touchStartY;
+
+    // Solo contamos como swipe si el movimiento horizontal es claro y mayor al vertical
+    if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX < 0) {
+        goToPage(currentPage + 1); // deslizar a la izquierda = siguiente
+      } else {
+        goToPage(currentPage - 1); // deslizar a la derecha = anterior
+      }
+    }
+  }, { passive: true });
 </script>
 
 </body>
