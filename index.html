@@ -75,6 +75,33 @@
     z-index: 6;
     user-select: none;
   }
+  #dots {
+    position: fixed;
+    bottom: 52px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 6;
+    max-width: 70vw;
+    overflow-x: auto;
+    padding: 6px 4px;
+  }
+  #dots::-webkit-scrollbar { display: none; }
+  .dot {
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.3s ease;
+  }
+  .dot:hover { background: rgba(255,255,255,0.6); }
+  .dot.active {
+    background: #ffffff;
+    transform: scale(1.4);
+  }
   #fullscreen-btn {
     position: fixed;
     top: 16px;
@@ -101,6 +128,7 @@
 <button id="prev-btn" class="nav-btn" aria-label="Anterior">&#10094;</button>
 <button id="next-btn" class="nav-btn" aria-label="Siguiente">&#10095;</button>
 <div id="counter"></div>
+<div id="dots"></div>
 <button id="fullscreen-btn">Pantalla completa</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -115,8 +143,32 @@
   const ctx = canvas.getContext('2d');
   const loading = document.getElementById('loading');
   const counter = document.getElementById('counter');
+  const dotsContainer = document.getElementById('dots');
+
+  function buildDots() {
+    dotsContainer.innerHTML = '';
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      dot.addEventListener('click', () => goToPage(i));
+      dotsContainer.appendChild(dot);
+    }
+    updateDots();
+  }
+
+  function updateDots() {
+    const dots = dotsContainer.children;
+    for (let i = 0; i < dots.length; i++) {
+      dots[i].classList.toggle('active', i + 1 === currentPage);
+    }
+    const activeDot = dots[currentPage - 1];
+    if (activeDot) activeDot.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
 
   function renderPage(num) {
+    canvas.style.transition = 'none';
+    canvas.style.opacity = '0';
+
     pdfDoc.getPage(num).then(function(page) {
       const availableW = window.innerWidth;
       const availableH = window.innerHeight;
@@ -149,6 +201,13 @@
         loading.style.display = 'none';
         canvas.style.display = 'block';
         counter.textContent = num + ' / ' + pdfDoc.numPages;
+        updateDots();
+
+        // Animación de aparición suave al cambiar de página
+        requestAnimationFrame(function() {
+          canvas.style.transition = 'opacity 0.35s ease';
+          canvas.style.opacity = '1';
+        });
       });
     });
   }
@@ -161,6 +220,7 @@
 
   pdfjsLib.getDocument(PDF_URL).promise.then(function(doc) {
     pdfDoc = doc;
+    buildDots();
     renderPage(currentPage);
   }).catch(function(err) {
     loading.textContent = 'No se pudo cargar el PDF. Verifica la URL.';
