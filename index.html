@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Presentación</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #0d0d0d;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  #viewer {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #pdf-canvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  }
+  #loading {
+    color: #ccc;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+  }
+  .nav-btn {
+    position: fixed;
+    top: 0;
+    height: 100%;
+    width: 15%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    color: rgba(255,255,255,0.25);
+    font-size: 40px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .nav-btn:hover {
+    color: rgba(255,255,255,0.85);
+    background: rgba(255,255,255,0.04);
+  }
+  #prev-btn { left: 0; justify-content: flex-start; padding-left: 20px; }
+  #next-btn { right: 0; justify-content: flex-end; padding-right: 20px; }
+
+  #counter {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.6);
+    font-size: 14px;
+    background: rgba(0,0,0,0.4);
+    padding: 6px 16px;
+    border-radius: 20px;
+    z-index: 6;
+    user-select: none;
+  }
+  #fullscreen-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 6;
+    background: rgba(0,0,0,0.4);
+    color: rgba(255,255,255,0.7);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #fullscreen-btn:hover { color: #fff; background: rgba(0,0,0,0.6); }
+</style>
+</head>
+<body>
+
+<div id="viewer">
+  <div id="loading">Cargando presentación...</div>
+  <canvas id="pdf-canvas" style="display:none;"></canvas>
+</div>
+
+<button id="prev-btn" class="nav-btn" aria-label="Anterior">&#10094;</button>
+<button id="next-btn" class="nav-btn" aria-label="Siguiente">&#10095;</button>
+<div id="counter"></div>
+<button id="fullscreen-btn">Pantalla completa</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  const PDF_URL = "https://gedorah26-art.github.io/portafolioabby.github.io/documento.pdf";
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+  let pdfDoc = null;
+  let currentPage = 1;
+  const canvas = document.getElementById('pdf-canvas');
+  const ctx = canvas.getContext('2d');
+  const loading = document.getElementById('loading');
+  const counter = document.getElementById('counter');
+
+  function renderPage(num) {
+    pdfDoc.getPage(num).then(function(page) {
+      // En celular (pantalla vertical), rotamos la página 90° para que
+      // la presentación (normalmente horizontal) aproveche toda la pantalla
+      const isPortrait = window.innerHeight > window.innerWidth;
+
+      const availableW = isPortrait ? window.innerHeight : window.innerWidth;
+      const availableH = isPortrait ? window.innerWidth : window.innerHeight;
+
+      const baseViewport = page.getViewport({ scale: 1 });
+
+      // Escala para que la página quepa en pantalla (en píxeles CSS)
+      const fitScale = Math.min(availableW / baseViewport.width, availableH / baseViewport.height);
+
+      // Multiplicamos por el pixel ratio del dispositivo para nitidez en pantallas Retina/4K
+      const pixelRatio = window.devicePixelRatio || 1;
+      const renderScale = fitScale * pixelRatio;
+      const viewport = page.getViewport({ scale: renderScale });
+
+      // El canvas interno se renderiza a mayor resolución...
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      // ...pero se muestra al tamaño "fit" en pantalla
+      const displayW = Math.floor(baseViewport.width * fitScale);
+      const displayH = Math.floor(baseViewport.height * fitScale);
+      canvas.style.width = displayW + 'px';
+      canvas.style.height = displayH + 'px';
+
+      canvas.style.transform = isPortrait
+        ? 'translate(-50%, -50%) rotate(90deg)'
+        : 'translate(-50%, -50%)';
+
+      const renderContext = {
+        canvasContext: ctx,
+        viewport: viewport
+      };
+      page.render(renderContext).promise.then(function() {
+        loading.style.display = 'none';
+        canvas.style.display = 'block';
+        counter.textContent = num + ' / ' + pdfDoc.numPages;
+      });
+    });
+  }
+
+  function goToPage(num) {
+    if (num < 1 || num > pdfDoc.numPages) return;
+    currentPage = num;
+    renderPage(currentPage);
+  }
+
+  pdfjsLib.getDocument(PDF_URL).promise.then(function(doc) {
+    pdfDoc = doc;
+    renderPage(currentPage);
+  }).catch(function(err) {
+    loading.textContent = 'No se pudo cargar el PDF. Verifica la URL.';
+    console.error(err);
+  });
+
+  document.getElementById('prev-btn').addEventListener('click', () => goToPage(currentPage - 1));
+  document.getElementById('next-btn').addEventListener('click', () => goToPage(currentPage + 1));
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === ' ') goToPage(currentPage + 1);
+    if (e.key === 'ArrowLeft') goToPage(currentPage - 1);
+  });
+
+  window.addEventListener('resize', function() {
+    if (pdfDoc) renderPage(currentPage);
+  });
+
+  document.getElementById('fullscreen-btn').addEventListener('click', function() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  });
+</script>
+
+</body>
+</html>
