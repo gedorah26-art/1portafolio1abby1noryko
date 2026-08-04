@@ -60,9 +60,7 @@
   #next-btn { right: 16px; }
 
   /* En pantallas táctiles (celulares/tablets) ocultamos las flechas y se navega deslizando */
-  @media (hover: none) and (pointer: coarse) {
-    .nav-btn { display: none; }
-  }
+  body.is-touch .nav-btn { display: none; }
 
   #counter {
     position: fixed;
@@ -188,6 +186,11 @@
       document.exitFullscreen();
     }
   });
+
+  // Detección confiable de dispositivo táctil para ocultar las flechas
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    document.body.classList.add('is-touch');
+  }
 
   // Navegación por deslizamiento (swipe) en celulares/tablets
   let touchStartX = 0;
