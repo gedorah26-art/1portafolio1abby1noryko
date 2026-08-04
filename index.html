@@ -111,12 +111,8 @@
 
   function renderPage(num) {
     pdfDoc.getPage(num).then(function(page) {
-      // En celular (pantalla vertical), rotamos la página 90° para que
-      // la presentación (normalmente horizontal) aproveche toda la pantalla
-      const isPortrait = window.innerHeight > window.innerWidth;
-
-      const availableW = isPortrait ? window.innerHeight : window.innerWidth;
-      const availableH = isPortrait ? window.innerWidth : window.innerHeight;
+      const availableW = window.innerWidth;
+      const availableH = window.innerHeight;
 
       const baseViewport = page.getViewport({ scale: 1 });
 
@@ -136,10 +132,7 @@
       const displayH = Math.floor(baseViewport.height * fitScale);
       canvas.style.width = displayW + 'px';
       canvas.style.height = displayH + 'px';
-
-      canvas.style.transform = isPortrait
-        ? 'translate(-50%, -50%) rotate(90deg)'
-        : 'translate(-50%, -50%)';
+      canvas.style.transform = 'translate(-50%, -50%)';
 
       const renderContext = {
         canvasContext: ctx,
